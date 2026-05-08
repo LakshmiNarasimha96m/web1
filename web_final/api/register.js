@@ -4,6 +4,16 @@ import { parseJsonBody } from '../utils/parseBody.js';
 
 const WAF_URL = process.env.WAF_URL || "https://firewall-o5y1.onrender.com";
 
+function payloadPreview(value) {
+  const s = String(value ?? "");
+  const trimmed = s.trim();
+  const max = 120;
+  return {
+    payload_len: trimmed.length,
+    payload_preview: trimmed.length > max ? trimmed.slice(0, max) + "..." : trimmed
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Only POST is allowed for register.' });
@@ -36,6 +46,13 @@ export default async function handler(req, res) {
     const wafResult = await wafRes.json();
 
     if (wafResult.block === true) {
+      console.warn('[WAF][BLOCK][ai]', {
+        endpoint: 'register',
+        attack_type: wafResult.attack_type || 'Unknown',
+        confidence: wafResult.confidence ?? null,
+        explanation: wafResult.explanation ?? null,
+        ...payloadPreview(combined)
+      });
       fetch(`${WAF_URL}/api/notify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -57,7 +74,7 @@ export default async function handler(req, res) {
       });
     }
   } catch (err) {
-    console.error('WAF ERROR (register):', err.message);
+    console.error('WAF ERROR (register):', err?.message || String(err));
   }
 
   const safeUsername = sanitizeInput(username);

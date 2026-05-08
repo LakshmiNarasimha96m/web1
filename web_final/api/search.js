@@ -98,7 +98,7 @@ export default async function handler(req, res) {
       });
     }
   } catch (err) {
-    console.error('WAF ERROR:', err.message);
+    console.error('WAF ERROR:', err?.message || String(err));
     // Fail open — don't block users if WAF is unreachable
   }
 

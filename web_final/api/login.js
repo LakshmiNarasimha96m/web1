@@ -4,6 +4,16 @@ import { parseJsonBody } from '../utils/parseBody.js';
 
 const WAF_URL = process.env.WAF_URL || "https://firewall-o5y1.onrender.com";
 
+function payloadPreview(value) {
+  const s = String(value ?? "");
+  const trimmed = s.trim();
+  const max = 120;
+  return {
+    payload_len: trimmed.length,
+    payload_preview: trimmed.length > max ? trimmed.slice(0, max) + "..." : trimmed
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Only POST is allowed for login.' });
@@ -31,6 +41,13 @@ export default async function handler(req, res) {
     const wafResult = await wafRes.json();
 
     if (wafResult.block === true) {
+      console.warn('[WAF][BLOCK][ai]', {
+        endpoint: 'login',
+        attack_type: wafResult.attack_type || 'Unknown',
+        confidence: wafResult.confidence ?? null,
+        explanation: wafResult.explanation ?? null,
+        ...payloadPreview(username)
+      });
       fetch(`${WAF_URL}/api/notify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -52,7 +69,7 @@ export default async function handler(req, res) {
       });
     }
   } catch (err) {
-    console.error('WAF ERROR (login):', err.message);
+    console.error('WAF ERROR (login):', err?.message || String(err));
   }
 
   const safeUsername = sanitizeInput(username);
