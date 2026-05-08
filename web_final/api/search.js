@@ -1,4 +1,6 @@
 import fetch from 'node-fetch';
+import { parseJsonBody } from '../utils/parseBody.js';
+import { inspectInput } from '../utils/wafRules.js';
 
 const WAF_URL = process.env.WAF_URL || "https://firewall-o5y1.onrender.com";
 
@@ -10,12 +12,34 @@ const sampleProducts = [
 ];
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Only POST is allowed for search.' });
+  // Support both:
+  // 1) JS fetch() POSTing JSON { searchFor }
+  // 2) Legacy form navigation /search.html?q=...
+  let rawTerm = '';
+
+  if (req.method === 'GET') {
+    rawTerm = req.query?.q ?? req.query?.searchFor ?? '';
+  } else if (req.method === 'POST') {
+    const body = await parseJsonBody(req);
+    rawTerm = body?.searchFor ?? body?.q ?? '';
+  } else {
+    return res.status(405).json({ error: 'Only GET and POST are allowed for search.' });
   }
 
-  const rawTerm = req.body?.searchFor ?? '';
   const searchTerm = String(rawTerm).trim();
+
+  // Quick local signature WAF: catches obvious payloads even if the remote AI WAF is down
+  // or chooses not to block.
+  const localWaf = inspectInput(searchTerm);
+  if (localWaf.blocked === true) {
+    return res.status(200).json({
+      blocked: true,
+      error: `\uD83D\uDEA8 Attack Blocked by Firewall`,
+      attack_type: 'XSS/Injection',
+      confidence: 1,
+      explanation: localWaf.reason || 'Request blocked by signature rules.'
+    });
+  }
 
   // --- CALL AI WAF ---
   try {

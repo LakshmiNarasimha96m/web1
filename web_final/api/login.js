@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 import { validateField, sanitizeInput } from '../utils/wafRules.js';
+import { parseJsonBody } from '../utils/parseBody.js';
 
 const WAF_URL = process.env.WAF_URL || "https://firewall-o5y1.onrender.com";
 
@@ -8,8 +9,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Only POST is allowed for login.' });
   }
 
-  const usernameRaw = req.body?.username ?? '';
-  const password    = req.body?.password ?? '';
+  const body = await parseJsonBody(req);
+  const usernameRaw = body?.username ?? '';
+  const password    = body?.password ?? '';
   const username    = String(usernameRaw).trim();
 
   const userValidation = validateField(username, { minLength: 3, maxLength: 32 });
