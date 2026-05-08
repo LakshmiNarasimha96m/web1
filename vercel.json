@@ -10,7 +10,8 @@
   },
   "routes": [
     { "handle": "filesystem" },
-    { "src": "^/$", "dest": "/public/index.html" },
-    { "src": "^(?!/api/)(.*)$", "dest": "/public$1" }
+    { "src": "^/$", "dest": "/web_final/public/index.html" },
+    { "src": "^(?!/api/)(.*)$", "dest": "/web_final/public$1" }
   ]
 }
+
