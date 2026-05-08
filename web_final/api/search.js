@@ -38,27 +38,7 @@ export default async function handler(req, res) {
 
   const searchTerm = String(rawTerm).trim();
 
-  // Quick local signature WAF: catches obvious payloads even if the remote AI WAF is down
-  // or chooses not to block.
-  const localWaf = inspectInput(searchTerm);
-  if (localWaf.blocked === true) {
-    console.warn('[WAF][BLOCK][local]', {
-      endpoint: 'search',
-      attack_type: 'XSS/Injection',
-      confidence: 1,
-      explanation: localWaf.reason || null,
-      ...payloadPreview(searchTerm)
-    });
-    return res.status(200).json({
-      blocked: true,
-      error: `\uD83D\uDEA8 Attack Blocked by Firewall`,
-      attack_type: 'XSS/Injection',
-      confidence: 1,
-      explanation: localWaf.reason || 'Request blocked by signature rules.'
-    });
-  }
-
-  // --- CALL AI WAF ---
+  // --- CALL AI WAF (primary source of attack_type/confidence/explanation) ---
   try {
     const wafRes = await fetch(`${WAF_URL}/api/waf`, {
       method: 'POST',
@@ -99,7 +79,25 @@ export default async function handler(req, res) {
     }
   } catch (err) {
     console.error('WAF ERROR:', err?.message || String(err));
-    // Fail open — don't block users if WAF is unreachable
+    // If the remote WAF is unreachable, fall back to local signature rules
+    // so obvious payloads are still blocked.
+    const localWaf = inspectInput(searchTerm);
+    if (localWaf.blocked === true) {
+      console.warn('[WAF][BLOCK][fallback-local]', {
+        endpoint: 'search',
+        attack_type: 'XSS/Injection',
+        confidence: 1,
+        explanation: localWaf.reason || null,
+        ...payloadPreview(searchTerm)
+      });
+      return res.status(200).json({
+        blocked: true,
+        error: `\uD83D\uDEA8 Attack Blocked by Firewall`,
+        attack_type: 'XSS/Injection',
+        confidence: 1,
+        explanation: localWaf.reason || 'Request blocked by signature rules.'
+      });
+    }
   }
 
   // --- NORMAL SEARCH ---
