@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "env": {
+    "WAF_URL": "https://firewall-o5y1.onrender.com"
+  },
+  "build": {
+    "env": {
+      "WAF_URL": "https://firewall-o5y1.onrender.com"
+    }
+  }
+}

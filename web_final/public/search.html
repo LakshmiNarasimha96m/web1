@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Search - VulnWeb</title>
+  <link rel="stylesheet" href="./css/style.css">
+  <script src="./js/main.js" defer></script>
+</head>
+
+<body>
+  <div id="mainLayer" style="position:absolute; width:700px; z-index:1">
+
+    <div id="masthead">
+      <h1 id="siteName">
+        <a href="https://www.acunetix.com/">
+          <img src="./images/logo.gif" width="306" height="38">
+        </a>
+      </h1>
+
+      <h6 id="siteInfo">
+        TEST and Demonstration site for
+        <a href="https://www.acunetix.com/vulnerability-scanner/">
+          Acunetix Web Vulnerability Scanner
+        </a>
+      </h6>
+
+      <div id="globalNav">
+        <table width="100%">
+          <tr>
+            <td align="left">
+              <a href="./index.html">home</a> |
+              <a href="./categories.html">categories</a> |
+              <a href="./artists.html">artists</a> |
+              <a href="./guestbook.html">guestbook</a> |
+              <a href="./cart.html">your cart</a>
+            </td>
+            <td align="right">
+              <a href="./login.html">Login</a> |
+              <a href="./register.html">Register</a>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div id="content">
+      <h1>Search</h1>
+
+      <form id="searchForm">
+        <div class="formField">
+          <label for="searchFor">Search Art</label>
+          <input id="searchFor" type="text" required>
+        </div>
+
+        <input type="submit" value="Search">
+      </form>
+
+      <div id="messageBox" style="color:red; margin-top:10px;"></div>
+      <div id="searchResults" style="margin-top:10px;"></div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div id="navBar">
+      <div id="search">
+        <form action="./search.html">
+          <label>search art</label>
+          <input type="text" size="10">
+          <input type="submit" value="go">
+        </form>
+      </div>
+
+      <div id="sectionLinks">
+        <ul>
+          <li><a href="./categories.html">Browse categories</a></li>
+          <li><a href="./artists.html">Browse artists</a></li>
+          <li><a href="./cart.html">Your cart</a></li>
+          <li><a href="./register.html">Signup</a></li>
+          <li><a href="./guestbook.html">Our guestbook</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div id="siteInfo">
+      <a href="#">About Us</a> |
+      <a href="./privacy.html">Privacy Policy</a> |
+      <a href="#">Contact Us</a>
+    </div>
+
+  </div>
+
+  <!-- 🔥 MAIN SCRIPT (IMPORTANT) -->
+  <script>
+    const form = document.getElementById("searchForm");
+    const input = document.getElementById("searchFor");
+    const resultsDiv = document.getElementById("searchResults");
+    const messageBox = document.getElementById("messageBox");
+
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const query = input.value.trim();
+
+      // clear previous
+      messageBox.innerHTML = "";
+      resultsDiv.innerHTML = "";
+
+      try {
+        const res = await fetch("/api/search", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ searchFor: query })
+        });
+
+        const data = await res.json();
+
+        // 🚨 WAF BLOCK
+        if (data.error) {
+          messageBox.innerHTML = "🚨 " + data.error +
+            (data.attack ? " (" + data.attack + ")" : "");
+          return;
+        }
+
+        // ✅ SHOW RESULTS
+        if (data.results) {
+          data.results.forEach(item => {
+            const div = document.createElement("div");
+            div.innerHTML = "<b>" + item.title + "</b><br>" + item.description + "<br><br>";
+            resultsDiv.appendChild(div);
+          });
+        }
+
+      } catch (err) {
+        messageBox.innerHTML = "❌ Error connecting to server";
+      }
+    });
+  </script>
+
+</body>
+</html>
