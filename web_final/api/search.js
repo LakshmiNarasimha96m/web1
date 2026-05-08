@@ -4,6 +4,16 @@ import { inspectInput } from '../utils/wafRules.js';
 
 const WAF_URL = process.env.WAF_URL || "https://firewall-o5y1.onrender.com";
 
+function payloadPreview(value) {
+  const s = String(value ?? "");
+  const trimmed = s.trim();
+  const max = 120;
+  return {
+    payload_len: trimmed.length,
+    payload_preview: trimmed.length > max ? trimmed.slice(0, max) + "..." : trimmed
+  };
+}
+
 const sampleProducts = [
   { title: 'Abstract oil painting', description: 'A colorful abstract oil painting for modern interiors.' },
   { title: 'Classic sculpture', description: 'A hand-finished modern sculpture in resin and stone.' },
@@ -32,6 +42,13 @@ export default async function handler(req, res) {
   // or chooses not to block.
   const localWaf = inspectInput(searchTerm);
   if (localWaf.blocked === true) {
+    console.warn('[WAF][BLOCK][local]', {
+      endpoint: 'search',
+      attack_type: 'XSS/Injection',
+      confidence: 1,
+      explanation: localWaf.reason || null,
+      ...payloadPreview(searchTerm)
+    });
     return res.status(200).json({
       blocked: true,
       error: `\uD83D\uDEA8 Attack Blocked by Firewall`,
@@ -52,6 +69,13 @@ export default async function handler(req, res) {
     const wafResult = await wafRes.json();
 
     if (wafResult.block === true) {
+      console.warn('[WAF][BLOCK][ai]', {
+        endpoint: 'search',
+        attack_type: wafResult.attack_type || 'Unknown',
+        confidence: wafResult.confidence ?? null,
+        explanation: wafResult.explanation ?? null,
+        ...payloadPreview(searchTerm)
+      });
       // Send notification to firewall admin (belt-and-suspenders)
       fetch(`${WAF_URL}/api/notify`, {
         method: 'POST',
